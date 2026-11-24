@@ -1,0 +1,6 @@
+{
+  "name": "여기에-프로젝트이름",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public" }
+}
