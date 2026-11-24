@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>플심 측풍 보드 – 한국·일본</title>
+<style>
+:root{--bg:#0e1a24;--panel:#15232f;--line:#26394a;--tx:#e6eef5;--mu:#8ea3b5;--ok:#3ecf8e;--mid:#e8c547;--hi:#f0883e;--bad:#ef5350;--acc:#6cb6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 "Pretendard","Noto Sans KR",system-ui,sans-serif}
+header{padding:18px 20px 10px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{font-size:20px;margin:0;font-weight:700}
+.sub{color:var(--mu);font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select,input,textarea{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit}
+button{cursor:pointer}button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#06121c;border-color:var(--acc)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+main{padding:0 20px 40px;max-width:2000px;margin:0 auto}
+input[type=search]{width:210px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--mu);font-size:12px;margin:4px 0 12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#list .na{grid-column:1/-1}
+@media(min-width:1100px){#list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:1600px){#list{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.ap{display:flex;flex-direction:column;gap:10px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.id b{font-size:18px;letter-spacing:.5px}.id>span{color:var(--mu);font-size:12px;margin-left:8px}
+.wind{display:flex;align-items:center;gap:10px;margin-top:6px}
+.wind svg{flex:none}
+.wv{font-size:15px;font-weight:600}.wv small{display:block;color:var(--mu);font-weight:400;font-size:11px}
+.rwys{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start}
+.rw{border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:6px;padding:5px 9px;min-width:104px;background:#101d28}
+.rw.best{outline:2px solid var(--acc)}
+.rw b{font-size:15px}.rw .t{font-size:12px;color:var(--mu)}
+.rw .x{font-size:13px}
+.c0{border-left-color:var(--ok)}.c1{border-left-color:var(--mid)}.c2{border-left-color:var(--hi)}.c3{border-left-color:var(--bad)}
+.tag{font-size:11px;color:var(--acc);margin-left:4px}
+.raw{color:var(--mu);font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.na{color:var(--mu);padding:8px 0}
+.wx{margin-top:8px;font-size:12px;color:var(--mu);line-height:1.6}.old{color:var(--hi)}
+.wx b{color:var(--tx);font-weight:600}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}
+textarea{width:100%;min-height:90px;font:12px ui-monospace,Menlo,Consolas,monospace;margin-top:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
+input[type=number]{width:80px}
+#st{color:var(--mu);font-size:12px}
+@media(max-width:640px){main{padding:0 10px 30px}header{padding:14px 10px 8px}.ap{padding:10px}.rw{min-width:0;flex:1 1 90px}input[type=search]{width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>측풍 보드 · 한국 / 일본 공항</h1>
+    <div class="sub">METAR 바람 → 활주로별 정풍·측풍 성분 (자북 보정 포함)</div>
+  </div>
+  <div class="bar">
+    <input id="q" type="search" placeholder="공항 검색 (ICAO 또는 이름)" aria-label="공항 검색" autocomplete="off">
+    <button id="fAll" class="on">전체</button><button id="fKR">한국</button><button id="fJP">일본</button>
+    <select id="sort"><option value="id">ICAO순</option><option value="xw">측풍 작은 순</option><option value="xwd">측풍 강한 순</option></select>
+    <button id="reload">METAR 새로고침</button>
+  </div>
+</header>
+<main>
+  <div class="legend">
+    <span><i style="background:var(--ok)"></i>측풍 ~10kt</span>
+    <span><i style="background:var(--mid)"></i>10–15</span>
+    <span><i style="background:var(--hi)"></i>15–20</span>
+    <span><i style="background:var(--bad)"></i>20kt 초과 또는 배풍 5kt 초과</span>
+    <span>파란 테두리 = 추천 활주로</span>
+    <span id="st"></span>
+  </div>
+
+  <details>
+    <summary>수동 입력 · METAR 붙여넣기 (자동 조회가 막혔을 때)</summary>
+    <div class="row">
+      <select id="mAp"></select>
+      <input id="mDir" type="number" min="0" max="360" placeholder="풍향°">
+      <input id="mSpd" type="number" min="0" placeholder="풍속 kt">
+      <input id="mGst" type="number" min="0" placeholder="돌풍 kt">
+      <button id="mApply">적용</button>
+      <label><input id="mMag" type="checkbox"> 이미 자북 기준 (SimConnect/MSFS 바람)</label>
+    </div>
+    <textarea id="paste" placeholder="RKSI 241200Z 31012G22KT 9999 FEW030 08/M02 Q1022&#10;RJTT 241200Z 36010KT ... (여러 줄 가능)"></textarea>
+    <div class="row"><button id="pApply">붙여넣은 METAR 적용</button></div>
+  </details>
+
+  <div id="list"></div>
+  <p class="sub">METAR 풍향은 진북 기준이고 활주로 번호는 자북 기준이라, 공항별 편차(한국 약 8°W, 일본 약 7°W)를 더해 비교합니다. 활주로 방위는 번호×10°로 근사한 값이며, 운항 판단용이 아닌 시뮬레이션용입니다.</p>
+</main>
+
+<script src="metar_data.js" onerror="void 0"></script>
+<script>
+// v = 서편차(°W). rw = 활주로 쌍
+const AP=[
+ // 한국
+ ["RKSI","인천","KR",8,["15L/33R","15R/33L","16/34"]],
+ ["RKSS","김포","KR",8,["14L/32R","14R/32L"]],
+ ["RKPC","제주","KR",8,["07/25","13/31"]],
+ ["RKPK","김해","KR",8,["18R/36L","18L/36R"]],
+ ["RKTU","청주","KR",8,["06L/24R","06R/24L"]],
+ ["RKTN","대구","KR",8,["13/31"]],
+ ["RKJB","무안","KR",8,["01/19"]],
+ ["RKNY","양양","KR",8,["15/33"]],
+ ["RKJJ","광주","KR",8,["04/22"]],
+ ["RKPU","울산","KR",8,["18/36"]],
+ ["RKJY","여수","KR",8,["17/35"]],
+ ["RKTH","포항경주","KR",8,["10/28"]],
+ // 일본
+ ["RJTT","하네다","JP",7,["04/22","05/23","16L/34R","16R/34L"]],
+ ["RJAA","나리타","JP",7,["16R/34L","16L/34R"]],
+ ["RJBB","간사이","JP",7,["06L/24R","06R/24L"]],
+ ["RJOO","이타미","JP",7,["14R/32L","14L/32R"]],
+ ["RJGG","주부 센트레아","JP",7,["18/36"]],
+ ["RJFF","후쿠오카","JP",7,["16/34"]],
+ ["RJCC","신치토세","JP",9,["01L/19R","01R/19L"]],
+ ["ROAH","나하","JP",4,["18/36"]],
+ ["RJFK","가고시마","JP",7,["16/34"]],
+ ["RJSS","센다이","JP",8,["09/27"]],
+ ["RJOM","마쓰야마","JP",7,["14/32"]],
+ ["RJFT","구마모토","JP",7,["07/25"]],
+ ["RJFU","나가사키","JP",7,["14/32"]],
+ ["RJOT","다카마쓰","JP",7,["08/26"]],
+ ["RJBE","고베","JP",7,["09/27"]]
+];
+const W={};            // icao -> {dir,spd,gst,raw,mag}
+const $=id=>document.getElementById(id);
+let filter="ALL";
+const EN={RKSI:"incheon",RKSS:"gimpo",RKPC:"jeju",RKPK:"gimhae busan",RKTU:"cheongju",RKTN:"daegu",RKJB:"muan",RKNY:"yangyang",RKJJ:"gwangju",RKPU:"ulsan",RKJY:"yeosu",RKTH:"pohang gyeongju",
+RJTT:"haneda tokyo",RJAA:"narita tokyo",RJBB:"kansai osaka",RJOO:"itami osaka",RJGG:"chubu centrair nagoya",RJFF:"fukuoka",RJCC:"new chitose sapporo",ROAH:"naha okinawa",RJFK:"kagoshima",RJSS:"sendai",RJOM:"matsuyama",RJFT:"kumamoto",RJFU:"nagasaki",RJOT:"takamatsu",RJBE:"kobe"};
+function hit(a,q){
+  q=q.trim().toLowerCase().replace(/\s+/g," ");
+  if(!q)return true;
+  return a[0].toLowerCase().includes(q)||a[1].toLowerCase().includes(q)||(EN[a[0]]||"").includes(q);
+}
+
+function parseMetar(t){
+  const m=t.match(/\b(VRB|\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b/);
+  if(!m)return null;
+  return{dir:m[1]==="VRB"?"VRB":+m[1],spd:+m[2],gst:m[3]?+m[3]:0};
+}
+function extra(t){
+  t=t||"";const o={};
+  let m=t.match(/\s(M?\d{2})\/(?:M?\d{2}|\/\/)(?=\s|$)/);
+  if(m)o.tmp=m[1][0]==="M"?-parseInt(m[1].slice(1)):parseInt(m[1]);
+  m=t.match(/\sQ(\d{4})/);
+  if(m)o.qnh=+m[1];
+  else{m=t.match(/\sA(\d{4})/);if(m)o.qnh=Math.round(m[1]/100*33.8639)}
+  m=t.match(/\s(\d{2})(\d{2})(\d{2})Z(?=\s|$)/);
+  if(m){const n=new Date();let mo=n.getUTCMonth();if(+m[1]>n.getUTCDate())mo--;
+    o.obs=Date.UTC(n.getUTCFullYear(),mo,+m[1],+m[2],+m[3])}
+  if(/\bCAVOK\b/.test(t))o.vis="CAVOK";
+  else{
+    const r=t.replace(/\b\d{3}V\d{3}\b/,"");
+    m=r.match(/KT\s+(\d{4})(?=\s|$)/);
+    if(m)o.vis=+m[1];
+    else{m=r.match(/KT\s+(\d+(?:\/\d+)?)SM/);if(m)o.vis="SM"+m[1]}
+  }
+  return o;
+}
+function p2(n){return String(n).padStart(2,"0")}
+function fmtObs(ms){
+  const u=new Date(ms),k=new Date(ms+9*36e5);
+  const mins=Math.max(0,Math.round((Date.now()-ms)/60000));
+  let age=mins<60?mins+"분 전":mins<1440?Math.floor(mins/60)+"시간 "+(mins%60)+"분 전":Math.floor(mins/1440)+"일 전";
+  return{z:p2(u.getUTCHours())+":"+p2(u.getUTCMinutes())+"Z",kst:p2(k.getUTCHours())+":"+p2(k.getUTCMinutes()),age,old:mins>75};
+}
+function fmtVis(v){
+  if(v==null)return"-";
+  if(v==="CAVOK")return"CAVOK";
+  if(typeof v==="string")return v.slice(2)+"SM";
+  return v>=9999?"10km+":(v>=1000?(v/1000).toFixed(1).replace(/\.0$/,"")+"km":v+"m");
+}
+function opp(h){return (h+180)%360}
+function ends(p){return p.split("/").map(n=>({n,h:parseInt(n)*10%360||360}))}
+function calc(wd,spd,hdg){
+  const a=(wd-hdg)*Math.PI/180;
+  return{head:spd*Math.cos(a),cross:spd*Math.sin(a)};
+}
+function cls(x,t){const a=Math.abs(x);if(t<-5||a>20)return"c3";if(a>15)return"c2";if(a>10)return"c1";return"c0"}
+
+function render(){
+  const el=document.getElementById("list");
+  let rows=AP.filter(a=>(filter==="ALL"||a[2]===filter)&&hit(a,$("q").value)).map(a=>{
+    const [id,name,c,v,rws]=a,w=W[id];
+    let info=null;
+    if(w&&w.dir!=="VRB"){
+      const wm=w.mag?w.dir:(w.dir+v)%360;
+      const sp=Math.max(w.spd,w.gst||0);
+      const rs=[];
+      rws.forEach(p=>ends(p).forEach(e=>{
+        const r=calc(wm,w.spd,e.h),g=w.gst?calc(wm,w.gst,e.h):r;
+        rs.push({n:e.n,head:r.head,cross:r.cross,gh:g.head,gc:g.cross});
+      }));
+      // 추천: 배풍 최소화 후 측풍(돌풍 포함) 최소
+      let best=null,bs=1e9;
+      rs.forEach(r=>{const s=Math.abs(r.gc)+(r.gh<0?-r.gh*2:0)-r.head*0.15;if(s<bs){bs=s;best=r}});
+      info={wm,rs,best,minx:Math.abs(best.gc)};
+    }
+    return{a,w,info};
+  });
+  const so=document.getElementById("sort").value;
+  if(so==="xw")rows.sort((x,y)=>(x.info?x.info.minx:999)-(y.info?y.info.minx:999));
+  else if(so==="xwd")rows.sort((x,y)=>(y.info?y.info.minx:-1)-(x.info?x.info.minx:-1));
+  if(!rows.length){el.innerHTML='<p class="na">검색 결과가 없습니다. ICAO 코드(예: RKSI)나 공항 이름(예: 김포)으로 검색해 보세요.</p>';return}
+  el.innerHTML=rows.map(({a,w,info})=>{
+    const [id,name,c]=a;
+    let wh="",rh="";
+    if(!w){wh='<div class="na">데이터 없음</div>';}
+    else if(w.dir==="VRB"){wh=`<div class="wv">VRB ${w.spd}kt</div>`;rh='<div class="na">풍향 불안정 – 수동 입력으로 풍향을 지정하세요.</div>';}
+    else{
+      const g=w.gst?`G${w.gst}`:"";
+      wh=`<div class="wind"><svg width="38" height="38" viewBox="-19 -19 38 38"><circle r="17" fill="none" stroke="#26394a"/><g transform="rotate(${(w.dir+180)%360})"><path d="M0-14L5 6L0 2L-5 6Z" fill="#6cb6ff"/></g></svg>
+      <div class="wv">${String(w.dir).padStart(3,"0")}° / ${w.spd}${g}kt<small>${w.mag?"자북 입력값":"진북→자북 "+String(info.wm).padStart(3,"0")+"°"}</small></div></div>`;
+      rh=info.rs.map(r=>{
+        const cr=w.gst?r.gc:r.cross,hd=w.gst?r.gh:r.head;
+        const side=r.cross>0?"우":"좌";
+        const k=cls(cr,r.head);
+        return`<div class="rw ${k}${r===info.best?" best":""}"><b>RWY ${r.n}</b>${r===info.best?'<span class="tag">추천</span>':""}
+        <div class="x">측풍 ${side} ${Math.abs(r.cross).toFixed(0)}${w.gst?` (G ${Math.abs(r.gc).toFixed(0)})`:""}kt</div>
+        <div class="t">${r.head>=0?"정풍":"배풍"} ${Math.abs(r.head).toFixed(0)}kt</div></div>`;
+      }).join("");
+    }
+    const ob=w&&w.obs?fmtObs(w.obs):null;
+    const wx=w&&(w.tmp!=null||w.qnh||w.vis!=null||ob)?`<div class="wx">기온 <b>${w.tmp!=null?w.tmp+"°C":"-"}</b> &nbsp;·&nbsp; QNH <b>${w.qnh||"-"}</b> hPa${w.qnh?` (${(w.qnh/33.8639).toFixed(2)} inHg)`:""} &nbsp;·&nbsp; 시정 <b>${fmtVis(w.vis)}</b>${ob?` &nbsp;·&nbsp; 관측 <b>${ob.z}</b> (${ob.kst} KST) &nbsp;·&nbsp; <span class="${ob.old?"old":""}">${ob.age}${ob.old?" · 오래된 데이터":""}</span>`:""}</div>`:"";
+    return`<section class="ap"><div class="id"><b>${id}</b><span>${name}</span>${wh}${wx}</div><div class="rwys">${rh}</div>${w&&w.raw?`<div class="raw">${w.raw}</div>`:""}</section>`;
+  }).join("");
+}
+
+async function load(){
+  const st=document.getElementById("st");
+  st.textContent="불러오는 중…";
+  try{
+    const ids=AP.map(a=>a[0]).join(",");
+    const base=`https://aviationweather.gov/api/data/metar?ids=${ids}&format=json`;
+    const urls=["/metar?ids="+ids,base,
+      "https://corsproxy.io/?url="+encodeURIComponent(base),
+      "https://api.allorigins.win/raw?url="+encodeURIComponent(base)];
+    let j=(window.METAR&&window.METAR.length)?window.METAR:null,errs=[];
+    for(const u of urls){
+      if(j)break;
+      try{
+        const r=await fetch(u);
+        if(!r.ok)throw new Error("HTTP "+r.status);
+        const d=await r.json();
+        if(Array.isArray(d)&&d.length){j=d;break}
+        throw new Error("빈 응답");
+      }catch(e){errs.push(e.message)}
+    }
+    if(!j)throw new Error(errs.join(" / "));
+    j.forEach(o=>{
+      if(!W[o.icaoId]||!W[o.icaoId].manual)
+        W[o.icaoId]={dir:o.wdir==="VRB"?"VRB":+o.wdir,spd:+o.wspd||0,gst:+o.wgst||0,raw:o.rawOb,...extra(o.rawOb)};
+    });
+    st.textContent="갱신 "+new Date().toLocaleTimeString("ko-KR");
+  }catch(e){
+    st.textContent="자동 조회 실패 ("+e.message+") – 수동 입력/붙여넣기를 사용하세요";
+  }
+  render();
+}
+
+// UI
+AP.forEach(a=>{const o=document.createElement("option");o.value=a[0];o.textContent=a[0]+" "+a[1];$("mAp").appendChild(o)});
+function setF(f,b){filter=f;["fAll","fKR","fJP"].forEach(i=>$(i).classList.remove("on"));$(b).classList.add("on");render()}
+$("fAll").onclick=()=>setF("ALL","fAll");$("fKR").onclick=()=>setF("KR","fKR");$("fJP").onclick=()=>setF("JP","fJP");
+$("sort").onchange=render;$("q").oninput=render;$("reload").onclick=load;
+$("mApply").onclick=()=>{
+  const d=$("mDir").value,s=$("mSpd").value;if(d===""||s==="")return;
+  const old=W[$("mAp").value]||{};
+  W[$("mAp").value]={tmp:old.tmp,qnh:old.qnh,vis:old.vis,dir:+d%360,spd:+s,gst:+$("mGst").value||0,mag:$("mMag").checked,manual:true,raw:"수동 입력"};
+  render();
+};
+$("pApply").onclick=()=>{
+  $("paste").value.split(/\n/).forEach(l=>{
+    const m=l.trim().match(/^(?:METAR\s+|SPECI\s+)?([A-Z]{4})\b/);
+    const p=parseMetar(l);
+    if(m&&p&&AP.some(a=>a[0]===m[1]))W[m[1]]={...p,...extra(l),raw:l.trim(),manual:true};
+  });
+  render();
+};
+setInterval(render,60000);
+render();load();
+</script>
+</body>
+</html>
